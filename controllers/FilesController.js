@@ -1,10 +1,15 @@
+import { v4 as uuidv4 } from 'uuid';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
 
 const ObjectId = require('mongodb');
+const fs = require('fs');
+const Bull = require('bull');
 
 class FilesController {
   static async postUpload(req, res) {
+    const fileQueue = new Bull('fileQueue');
+
     const token = req.header('X-Token') || null;
     if (!token) return res.status(401).send({ error: 'Unauthorized' });
 
@@ -44,8 +49,49 @@ class FilesController {
       isPublic: fileIsPublic,
       parentId,
     };
-    return res.status(200).send({
+
+    if (['folder'].includes(fileType)) {
+      await dbClient.db.collection('files').insertOne(dbFile);
+      return res.status(201).send({
+        id: dbFile._id,
+        userId: dbFile.userId,
+        name: dbFile.name,
+        type: dbFile.type,
+        isPublic: dbFile.isPublic,
+        parentId: dbFile.parentId,
+      });
+    }
+    const pathDir = process.env.FOLDER_PATH || '/tmp/files_manager';
+    const renameFile = uuidv4();
+
+    const buffer = Buffer.from(fileData, 'base64');
+    const path = `${pathDir}/${renameFile}`;
+
+    await fs.mkdir(pathDir, { recursive: true }, (err) => {
+      if (err) return res.status(400).send({ error: err.message });
+      return true;
+    });
+
+    await fs.writeFile(path, buffer, (err) => {
+      if (err) return res.status(400).send({ error: err.message });
+      return true;
+    });
+
+    dbFile.localPath = path;
+    await dbClient.db.collection('files').insertOne(dbFile);
+
+    fileQueue.add({
+      userId: user._id,
+      fileId: dbFile._id,
+    });
+
+    return res.status(201).send({
       id: dbFile._id,
+      userId: dbFile.userId,
+      name: dbFile.name,
+      type: dbFile.type,
+      isPublic: dbFile.isPublic,
+      parentId: dbFile.parentId,
     });
   }
 }
