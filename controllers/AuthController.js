@@ -16,9 +16,10 @@ class AuthController {
 
     if (!credentials.email || !credentials.password) return res.status(401).send({ error: 'Unauthorized' });
 
-    dbClient.db.collection('users').findOne({ email: credentials.email }, (err, user) => {
-      if (err || !user || user.password !== sha1(credentials.password)) return res.status(401).send({ error: 'Unauthorized' });
-    });
+    credentials.password = sha1(credentials.password);
+
+    const existingUser = dbClient.db.collection('users').findOne({ email: credentials.email });
+    if (!existingUser) return res.status(401).send({ error: 'Unauthorized' });
 
     const token = uuidv4();
     const key = `auth_${token}`;
