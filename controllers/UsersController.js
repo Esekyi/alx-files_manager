@@ -1,7 +1,8 @@
-import { ObjectId } from 'mongodb';
 import sha1 from 'sha1';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
+
+const { ObjectId } = require('mongodb');
 
 class UsersController {
   static async postNew(req, res) {
@@ -25,11 +26,13 @@ class UsersController {
     const redisToken = await redisClient.get(`auth_${token}`);
     if (!redisToken) return res.status(401).send({ error: 'Unauthorized' });
 
-    const user = await dbClient.db.collection('users').findOne({ _id: new ObjectId(redisToken) });
+    const user = await dbClient.db.collection('users').findOne({ _id: ObjectId(redisToken) });
 
     if (!user) return res.status(401).send({ error: 'Unauthorized' });
+    delete user.password;
+
     return res.status(200).send({ id: user._id, email: user.email });
   }
 }
 
-export default UsersController;
+module.exports = UsersController;

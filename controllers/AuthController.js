@@ -30,7 +30,7 @@ class AuthController {
 
     const token = uuidv4();
     const key = `auth_${token}`;
-    redisClient.set(key, user._id.toString(), 86400);
+    await redisClient.set(key, user._id.toString(), 86400);
     return res.status(200).send({ token });
   }
 
@@ -46,4 +46,4 @@ class AuthController {
   }
 }
 
-export default AuthController;
+module.exports = AuthController;
